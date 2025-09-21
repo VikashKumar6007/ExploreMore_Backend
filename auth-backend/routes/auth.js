@@ -3,6 +3,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const User = require("../models/User");
+const { v4: uuidv4 } = require("uuid"); // for unique userId + sessionToken
+
 
 const router = express.Router();
 
@@ -11,28 +13,6 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
 });
-// // 📌 Register
-// router.post("/register", async (req, res) => {
-//   try {
-//     const { name, email, phone, password } = req.body;
-//     const hashedPass = await bcrypt.hash(password, 10);
-//     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-
-//     const user = new User({ name, email, phone, password: hashedPass, otp });
-//     await user.save();
-
-//     // Send OTP
-//     await transporter.sendMail({
-//       to: email,
-//       subject: "Verify your account",
-//       text: `Your OTP is ${otp}`,
-//     });
-
-//     res.json({ status: "success", userId: user._id, msg: "OTP sent" });
-//   } catch (err) {
-//     res.json({ status: "error", msg: err.message });
-//   }
-// });
 
 
 
@@ -42,43 +22,47 @@ router.post("/register", async (req, res) => {
     const { name, email, phoneCode, phone, password } = req.body;
 
     if (!phone || !phoneCode) {
-      return res.json({ status: "error", msg: "Phone code and number are required" });
+      return res.json({ status: 0, message: "Phone code and number are required" });
     }
 
     const hashedPass = password ? await bcrypt.hash(password, 10) : ""; 
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
 
-    const userData = {
+    // Generate IDs + tokens
+    const userId = uuidv4();
+    const sessionToken = uuidv4();
+
+    const user = new User({
+      userId,
       name: name || "",
+      email: email || "",
       phoneCode,
       phone,
       password: hashedPass,
       otp,
-      isVerified: false
-    };
-    
-    if (email) {
-      userData.email = email; // only set if provided
-    }
-    
-    const user = new User(userData);
+      isVerified: false,
+      createDate: new Date()
+    });
+
     await user.save();
-    
 
-    // send OTP via email if email exists
-    if (email) {
-      await transporter.sendMail({
-        to: email,
-        subject: "Verify your account",
-        text: `Your OTP is ${otp}`
-      });
-    }
-
-    // Here you can also send OTP via SMS if phone-only (using Twilio or another service)
-    res.json({ status: "success", userId: user._id, msg: "OTP sent" });
+    // ✅ Final response format
+    res.json({
+      status: 1,
+      message: "User created successfully.",
+      data: {
+        userId: userId,
+        sessionToken: sessionToken,
+        phoneCode: phoneCode,
+        phone: phone,
+        otp: otp,  // remove in production if sensitive
+        createDate: user.createDate,
+        isVerified: 0
+      }
+    });
 
   } catch (err) {
-    res.json({ status: "error", msg: err.message });
+    res.json({ status: 0, message: err.message });
   }
 });
 
