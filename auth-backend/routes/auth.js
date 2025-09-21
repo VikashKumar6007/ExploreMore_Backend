@@ -50,7 +50,7 @@ router.post("/register", async (req, res) => {
 
     const user = new User({
       name: name || "",
-      email: email || null,
+      email: email || "",
       phoneCode,
       phone,
       password: hashedPass,
