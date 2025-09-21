@@ -71,11 +71,12 @@ router.post("/verify-otp", async (req, res) => {
   try {
     const { userId, otp } = req.body;
 
-    const user = await User.findById(userId);
+    // ✅ Use your custom userId field, not MongoDB _id
+    const user = await User.findOne({ userId });
     if (!user) return res.json({ status: "error", msg: "User not found" });
 
     if (user.otp === otp) {
-      user.isVerified = true;  // ✅ set true after OTP verification
+      user.isVerified = true;  // set true after OTP verification
       user.otp = null;         // clear OTP
       await user.save();
 
@@ -100,6 +101,7 @@ router.post("/verify-otp", async (req, res) => {
     res.json({ status: "error", msg: err.message });
   }
 });
+
 
 
 // 📌 Login
