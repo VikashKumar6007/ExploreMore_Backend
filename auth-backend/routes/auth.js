@@ -11,25 +11,65 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
 });
+// // 📌 Register
+// router.post("/register", async (req, res) => {
+//   try {
+//     const { name, email, phone, password } = req.body;
+//     const hashedPass = await bcrypt.hash(password, 10);
+//     const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+//     const user = new User({ name, email, phone, password: hashedPass, otp });
+//     await user.save();
+
+//     // Send OTP
+//     await transporter.sendMail({
+//       to: email,
+//       subject: "Verify your account",
+//       text: `Your OTP is ${otp}`,
+//     });
+
+//     res.json({ status: "success", userId: user._id, msg: "OTP sent" });
+//   } catch (err) {
+//     res.json({ status: "error", msg: err.message });
+//   }
+// });
+
+
 
 // 📌 Register
 router.post("/register", async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
+
+    if (!phone) {
+      return res.json({ status: "error", msg: "Phone number is required" });
+    }
+
     const hashedPass = await bcrypt.hash(password, 10);
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-    const user = new User({ name, email, phone, password: hashedPass, otp });
-    await user.save();
-
-    // Send OTP
-    await transporter.sendMail({
-      to: email,
-      subject: "Verify your account",
-      text: `Your OTP is ${otp}`,
+    const user = new User({
+      name,
+      email: email || null, // optional
+      phone,
+      password: hashedPass,
+      otp: email ? otp : null, // generate OTP only if email exists
+      isVerified: email ? false : true, // skip verification if phone-only
     });
 
-    res.json({ status: "success", userId: user._id, msg: "OTP sent" });
+    await user.save();
+
+    // Send OTP only if email is provided
+    if (email) {
+      await transporter.sendMail({
+        to: email,
+        subject: "Verify your account",
+        text: `Your OTP is ${otp}`,
+      });
+      res.json({ status: "success", userId: user._id, msg: "OTP sent to email" });
+    } else {
+      res.json({ status: "success", userId: user._id, msg: "Registered successfully with phone" });
+    }
   } catch (err) {
     res.json({ status: "error", msg: err.message });
   }
