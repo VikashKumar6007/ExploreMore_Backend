@@ -5,7 +5,6 @@ const nodemailer = require("nodemailer");
 const User = require("../models/User");
 const { v4: uuidv4 } = require("uuid");// for unique userId + sessionToken
 
-
 const router = express.Router();
 
 // Nodemailer Transport
@@ -159,5 +158,187 @@ router.post("/reset-password", async (req, res) => {
     res.json({ status: "error", msg: "Invalid OTP" });
   }
 });
+
+
+// 📌 Resend OTP
+router.post("/resend-otp", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    // Find the user by your custom userId
+    const user = await User.findOne({ userId });
+    if (!user) return res.json({ status: "error", msg: "User not found" });
+
+    // Generate new OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    await user.save();
+
+    // Generate a new session token
+    const sessionToken = uuidv4();
+
+    // Send OTP via email if exists
+    if (user.email) {
+      await transporter.sendMail({
+        to: user.email,
+        subject: "Resend OTP",
+        text: `Your new OTP is ${otp}`,
+      });
+    }
+
+    // ✅ Send the same response format
+    res.json({
+      status: 1,
+      message: "OTP resent successfully",
+      data: {
+        userId: user.userId,
+        sessionToken,
+        phoneCode: user.phoneCode,
+        phone: user.phone,
+        otp,              // remove in production if sensitive
+        isVerified: user.isVerified ? 1 : 0,
+      },
+    });
+  } catch (err) {
+    res.json({ status: "error", msg: err.message });
+  }
+});
+
+
+
+
+
+
+// GET /home
+router.get("/home", async (req, res) => {
+  try {
+    const homeData = {
+      status: 1,
+      message: "Successfully got Home Management list",
+      data: {
+        homeManagement: [
+          {
+            id: 1,
+            name: "Banner",
+            subtitle: " ",
+            type: "B",
+            image: "https://example.com/banner.png",
+            hideTitle: 0,
+            isSeeAll: 0,
+            items: [
+              {
+                id: 3,
+                name: "Most Affordable & Fresh!",
+                image: "https://example.com/item1.png",
+                type: "C",
+                typeId: 4,
+                hasAddon: 0
+              },
+              {
+                id: 1,
+                name: "Summer Fruit Fiesta",
+                image: "https://example.com/item2.png",
+                type: "C",
+                typeId: 1,
+                hasAddon: 0
+              },
+              {
+                id: 2,
+                name: "Mango that melts Heart",
+                image: "https://example.com/item3.png",
+                type: "F",
+                typeId: 3,
+                hasAddon: 0
+              }
+            ],
+            brand: {}
+          },
+          {
+            id: 2,
+            name: "Featured Categories",
+            subtitle: "Discover Our Top Picks",
+            type: "C",
+            image: "https://example.com/category.png",
+            hideTitle: 0,
+            isSeeAll: 1,
+            items: [
+              {
+                id: 1,
+                homeManagementId: 2,
+                name: "Fresh Fruits",
+                icon: "",
+                image: "https://example.com/freshfruits.png",
+                hasAddon: 0
+              },
+              {
+                id: 3,
+                homeManagementId: 2,
+                name: "Herbs & Spices",
+                icon: "",
+                image: "https://example.com/herbs.png",
+                hasAddon: 0
+              },
+              {
+                id: 5,
+                homeManagementId: 2,
+                name: "Fresh Vegetables",
+                icon: "",
+                image: "https://example.com/vegetables.png",
+                hasAddon: 0
+              }
+            ],
+            brand: {}
+          },
+          {
+            id: 3,
+            name: "Customise Your Salad",
+            subtitle: "Your Bowl. Your Way. Every Day.",
+            type: "SLD",
+            image: "https://example.com/salad.png",
+            hideTitle: 0,
+            isSeeAll: 0,
+            items: [],
+            brand: {}
+          },
+          {
+            id: 4,
+            name: "Near Me",
+            subtitle: "Restaurants around you",
+            type: "NA",
+            image: "",
+            hideTitle: 0,
+            isSeeAll: 1,
+            items: [
+              {
+                id: 101,
+                name: "Pizza Hub",
+                image: "https://example.com/pizzahub.png",
+                type: "R",
+                typeId: 101,
+                hasAddon: 0
+              },
+              {
+                id: 102,
+                name: "Burger House",
+                image: "https://example.com/burgerhouse.png",
+                type: "R",
+                typeId: 102,
+                hasAddon: 0
+              }
+            ],
+            brand: {}
+          }
+        ]
+      }
+    };
+
+    res.json(homeData);
+  } catch (err) {
+    res.json({ status: 0, message: err.message });
+  }
+});
+
+module.exports = router;
+
 
 module.exports = router;
