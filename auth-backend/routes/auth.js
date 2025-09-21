@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const User = require("../models/User");
-const { v4: uuidv4 } = require("uuid"); // for unique userId + sessionToken
+const { v4: uuidv4 } = require("uuid");// for unique userId + sessionToken
 
 
 const router = express.Router();
