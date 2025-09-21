@@ -68,18 +68,36 @@ router.post("/register", async (req, res) => {
 
 // 📌 Verify OTP
 router.post("/verify-otp", async (req, res) => {
-  const { userId, otp } = req.body;
+  try {
+    const { userId, otp } = req.body;
 
-  const user = await User.findById(userId);
-  if (!user) return res.json({ status: "error", msg: "User not found" });
+    const user = await User.findById(userId);
+    if (!user) return res.json({ status: "error", msg: "User not found" });
 
-  if (user.otp === otp) {
-    user.isVerified = true;  // ✅ set true after OTP verification
-    user.otp = null;         // clear OTP
-    await user.save();
-    res.json({ status: "verified", msg: "OTP verified successfully" });
-  } else {
-    res.json({ status: "error", msg: "Invalid OTP" });
+    if (user.otp === otp) {
+      user.isVerified = true;  // ✅ set true after OTP verification
+      user.otp = null;         // clear OTP
+      await user.save();
+
+      // Generate session token
+      const sessionToken = uuidv4();
+
+      res.json({
+        status: 1,
+        message: "Otp verified successfully",
+        data: {
+          userId: user._id,
+          sessionToken,
+          phoneCode: user.phoneCode,
+          phone: user.phone,
+          isVerified: 1
+        }
+      });
+    } else {
+      res.json({ status: "error", msg: "Invalid OTP" });
+    }
+  } catch (err) {
+    res.json({ status: "error", msg: err.message });
   }
 });
 
