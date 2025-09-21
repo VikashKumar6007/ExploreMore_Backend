@@ -39,37 +39,39 @@ const transporter = nodemailer.createTransport({
 // 📌 Register
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phoneCode, phone, password } = req.body;
 
-    if (!phone) {
-      return res.json({ status: "error", msg: "Phone number is required" });
+    if (!phone || !phoneCode) {
+      return res.json({ status: "error", msg: "Phone code and number are required" });
     }
 
-    const hashedPass = await bcrypt.hash(password, 10);
+    const hashedPass = password ? await bcrypt.hash(password, 10) : ""; 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
     const user = new User({
-      name,
-      email: email || null, // optional
+      name: name || "",
+      email: email || null,
+      phoneCode,
       phone,
       password: hashedPass,
-      otp: email ? otp : null, // generate OTP only if email exists
-      isVerified: email ? false : true, // skip verification if phone-only
+      otp,
+      isVerified: false // all users start unverified
     });
 
     await user.save();
 
-    // Send OTP only if email is provided
+    // send OTP via email if email exists
     if (email) {
       await transporter.sendMail({
         to: email,
         subject: "Verify your account",
-        text: `Your OTP is ${otp}`,
+        text: `Your OTP is ${otp}`
       });
-      res.json({ status: "success", userId: user._id, msg: "OTP sent to email" });
-    } else {
-      res.json({ status: "success", userId: user._id, msg: "Registered successfully with phone" });
     }
+
+    // Here you can also send OTP via SMS if phone-only (using Twilio or another service)
+    res.json({ status: "success", userId: user._id, msg: "OTP sent" });
+
   } catch (err) {
     res.json({ status: "error", msg: err.message });
   }
@@ -78,26 +80,33 @@ router.post("/register", async (req, res) => {
 // 📌 Verify OTP
 router.post("/verify-otp", async (req, res) => {
   const { userId, otp } = req.body;
+
   const user = await User.findById(userId);
   if (!user) return res.json({ status: "error", msg: "User not found" });
 
   if (user.otp === otp) {
-    user.isVerified = true;
-    user.otp = null;
+    user.isVerified = true;  // ✅ set true after OTP verification
+    user.otp = null;         // clear OTP
     await user.save();
-    res.json({ status: "verified" });
+    res.json({ status: "verified", msg: "OTP verified successfully" });
   } else {
     res.json({ status: "error", msg: "Invalid OTP" });
   }
 });
 
+
 // 📌 Login
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
+  const { email, phoneCode, phone, password } = req.body;
+
+  // allow login with either email or phone
+  const user = email 
+    ? await User.findOne({ email }) 
+    : await User.findOne({ phoneCode, phone });
+
   if (!user) return res.json({ status: "error", msg: "User not found" });
 
-  const isPassValid = await bcrypt.compare(password, user.password);
+  const isPassValid = password ? await bcrypt.compare(password, user.password) : true;
   if (!isPassValid) return res.json({ status: "error", msg: "Wrong password" });
 
   if (!user.isVerified) return res.json({ status: "error", msg: "Not verified" });
@@ -105,6 +114,7 @@ router.post("/login", async (req, res) => {
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
   res.json({ status: "success", token });
 });
+
 
 // 📌 Forgot Password (send OTP)
 router.post("/forgot-password", async (req, res) => {
