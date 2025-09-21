@@ -48,17 +48,22 @@ router.post("/register", async (req, res) => {
     const hashedPass = password ? await bcrypt.hash(password, 10) : ""; 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-    const user = new User({
+    const userData = {
       name: name || "",
-      email: email || "",
       phoneCode,
       phone,
       password: hashedPass,
       otp,
-      isVerified: false // all users start unverified
-    });
-
+      isVerified: false
+    };
+    
+    if (email) {
+      userData.email = email; // only set if provided
+    }
+    
+    const user = new User(userData);
     await user.save();
+    
 
     // send OTP via email if email exists
     if (email) {
